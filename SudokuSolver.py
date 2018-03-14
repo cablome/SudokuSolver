@@ -110,91 +110,19 @@ class Puzzle:
         unsolved_before = len(working_set)
 
         while not puzzle_solved:
-            # seek out and process hidden singles
-            multiple_mark_set = [k for k in working_set if len(k.PencilMarks) > 1]
-            for i in multiple_mark_set:
-                hidden_single = None
-                for j in i.PencilMarks:
-                    # is pencil mark j unique in the row, column, or grid?
-                    if all(j not in self.cells[k].PencilMarks for k in i.neighbors.row) \
-                            or all(j not in self.cells[k].PencilMarks for k in i.neighbors.column) \
-                            or all(j not in self.cells[k].PencilMarks for k in i.neighbors.grid):
-                        hidden_single = j
-                        break
-
-                if hidden_single is not None:
-                    i.PencilMarks = [hidden_single]
-            # seek out and process naked singles
-            naked_single_set = [y for y in working_set if len(y.PencilMarks) == 1]
-            # print([x.PencilMarks for x in naked_single_set])
-            for i in naked_single_set:
-                i.solve(i.PencilMarks[0])
-                # print(i.GetValue())
-                for j in i.neighbors.aggregate():
-                    # print(j, self.cells[j].PencilMarks)
-                    self.cells[j].remove_mark(i.get_value())
-                    # print(j, self.cells[j].PencilMarks)
-            new_singles_set = [y for y in [x for x in self.cells if not x.solved] if len(y.PencilMarks) == 1]
+            # deal with hidden and naked singles until none are found
+            new_singles_set = self.process_singles(working_set)
             if len(new_singles_set) > 0:
                 continue
 
             working_set = [x for x in self.cells if not x.solved]
             # check for hidden pairs
-            neighbor_pairs = [p for p in combinations(working_set, 2)
-                              if (len(set(p[0].PencilMarks)) > 2 or len(set(p[1].PencilMarks)) > 2)
-                              and (p[0].row_index == p[1].row_index
-                              or p[0].column_index == p[1].column_index
-                              or p[0].grid == p[1].grid)]
-            for pair in neighbor_pairs:
-                hidden_pair = False
-                shared_marks = set(pair[0].PencilMarks) | set(pair[1].PencilMarks)
-                if pair[0].row_index == pair[1].row_index:
-                    mutual_neighbors = set(pair[0].neighbors.row) & set(pair[1].neighbors.row)
-                    mn_marks = [set(self.cells[i].PencilMarks) for i in mutual_neighbors]
-                    exclusive_marks = shared_marks - set.union(*mn_marks)
-                    hidden_pair = len(exclusive_marks) == 2
-                elif pair[0].column_index == pair[1].column_index:
-                    mutual_neighbors = set(pair[0].neighbors.column) & set(pair[1].neighbors.column)
-                    mn_marks = [set(self.cells[i].PencilMarks) for i in mutual_neighbors]
-                    exclusive_marks = shared_marks - set.union(*mn_marks)
-                    hidden_pair = len(exclusive_marks) == 2
-                elif not hidden_pair and pair[0].grid == pair[1].grid:
-                    mutual_neighbors = set(pair[0].neighbors.grid) & set(pair[1].neighbors.grid)
-                    mn_marks = [set(self.cells[i].PencilMarks) for i in mutual_neighbors]
-                    exclusive_marks = shared_marks - set.union(*mn_marks)
-                    hidden_pair = len(exclusive_marks) == 2
-
-                if hidden_pair:
-                    # remove other pencil marks
-                    for mark in [x for x in pair[0].PencilMarks if x not in exclusive_marks]:
-                        pair[0].remove_mark(mark)
-                    for mark in [x for x in pair[1].PencilMarks if x not in exclusive_marks]:
-                        pair[1].remove_mark(mark)
+            self.process_hidden_pairs(working_set)
 
             # check for naked pairs
-            pair_candidate_set = [x for x in working_set if len(x.PencilMarks) == 2]
-            for pair in combinations(pair_candidate_set, 2):
-                if pair[0].PencilMarks == pair[1].PencilMarks:
-                    # may be a naked pair -- check for same section and process
-                    if pair[0].row_index == pair[1].row_index:
-                        # same row -- remove pencil marks from others in row
-                        for c in [self.cells[i] for i in pair[0].neighbors.row
-                                  if self.cells[i].column_index != pair[1].column_index]:
-                            c.remove_mark(pair[0].PencilMarks[0])
-                            c.remove_mark(pair[0].PencilMarks[1])
-                    if pair[0].column_index == pair[1].column_index:
-                        # same column -- remove pencil marks from others in column
-                        for c in [self.cells[i] for i in pair[0].neighbors.column
-                                  if self.cells[i].row_index != pair[1].row_index]:
-                            c.remove_mark(pair[0].PencilMarks[0])
-                            c.remove_mark(pair[0].PencilMarks[1])
-                    if pair[0].grid == pair[1].grid:
-                        # same grid -- remove pencil marks from others in grid
-                        for c in [self.cells[i] for i in pair[0].neighbors.grid
-                                  if self.cells[i].row_index != pair[1].row_index
-                                  or self.cells[i].column_index != pair[1].column_index]:
-                            c.remove_mark(pair[0].PencilMarks[0])
-                            c.remove_mark(pair[0].PencilMarks[1])
+            self.process_naked_pairs(working_set)
+
+            # keep rolling if new singles resulted from pairs checks
             new_singles_set = [y for y in [x for x in self.cells if not x.solved] if len(y.PencilMarks) == 1]
             if len(new_singles_set) > 0:
                 continue
@@ -209,6 +137,91 @@ class Puzzle:
             print("unsolved:" + str(unsolved_after))
             puzzle_solved = (unsolved_after == 0)
         return [self.cells[i].get_value() for i in range(81)]
+
+    def process_naked_pairs(self, working_set):
+        pair_candidate_set = [x for x in working_set if len(x.PencilMarks) == 2]
+        for pair in combinations(pair_candidate_set, 2):
+            if pair[0].PencilMarks == pair[1].PencilMarks:
+                # may be a naked pair -- check for same section and process
+                if pair[0].row_index == pair[1].row_index:
+                    # same row -- remove pencil marks from others in row
+                    for c in [self.cells[i] for i in pair[0].neighbors.row
+                              if self.cells[i].column_index != pair[1].column_index]:
+                        c.remove_mark(pair[0].PencilMarks[0])
+                        c.remove_mark(pair[0].PencilMarks[1])
+                if pair[0].column_index == pair[1].column_index:
+                    # same column -- remove pencil marks from others in column
+                    for c in [self.cells[i] for i in pair[0].neighbors.column
+                              if self.cells[i].row_index != pair[1].row_index]:
+                        c.remove_mark(pair[0].PencilMarks[0])
+                        c.remove_mark(pair[0].PencilMarks[1])
+                if pair[0].grid == pair[1].grid:
+                    # same grid -- remove pencil marks from others in grid
+                    for c in [self.cells[i] for i in pair[0].neighbors.grid
+                              if self.cells[i].row_index != pair[1].row_index
+                                 or self.cells[i].column_index != pair[1].column_index]:
+                        c.remove_mark(pair[0].PencilMarks[0])
+                        c.remove_mark(pair[0].PencilMarks[1])
+
+    def process_hidden_pairs(self, working_set):
+        neighbor_pairs = [p for p in combinations(working_set, 2)
+                          if (len(set(p[0].PencilMarks)) > 2 or len(set(p[1].PencilMarks)) > 2)
+                          and (p[0].row_index == p[1].row_index
+                               or p[0].column_index == p[1].column_index
+                               or p[0].grid == p[1].grid)]
+        for pair in neighbor_pairs:
+            hidden_pair = False
+            shared_marks = set(pair[0].PencilMarks) | set(pair[1].PencilMarks)
+            if pair[0].row_index == pair[1].row_index:
+                mutual_neighbors = set(pair[0].neighbors.row) & set(pair[1].neighbors.row)
+                mn_marks = [set(self.cells[i].PencilMarks) for i in mutual_neighbors]
+                exclusive_marks = shared_marks - set.union(*mn_marks)
+                hidden_pair = len(exclusive_marks) == 2
+            elif pair[0].column_index == pair[1].column_index:
+                mutual_neighbors = set(pair[0].neighbors.column) & set(pair[1].neighbors.column)
+                mn_marks = [set(self.cells[i].PencilMarks) for i in mutual_neighbors]
+                exclusive_marks = shared_marks - set.union(*mn_marks)
+                hidden_pair = len(exclusive_marks) == 2
+            elif not hidden_pair and pair[0].grid == pair[1].grid:
+                mutual_neighbors = set(pair[0].neighbors.grid) & set(pair[1].neighbors.grid)
+                mn_marks = [set(self.cells[i].PencilMarks) for i in mutual_neighbors]
+                exclusive_marks = shared_marks - set.union(*mn_marks)
+                hidden_pair = len(exclusive_marks) == 2
+
+            if hidden_pair:
+                # remove other pencil marks
+                for mark in [x for x in pair[0].PencilMarks if x not in exclusive_marks]:
+                    pair[0].remove_mark(mark)
+                for mark in [x for x in pair[1].PencilMarks if x not in exclusive_marks]:
+                    pair[1].remove_mark(mark)
+
+    def process_singles(self, working_set):
+        # seek out and process hidden singles
+        multiple_mark_set = [k for k in working_set if len(k.PencilMarks) > 1]
+        for i in multiple_mark_set:
+            hidden_single = None
+            for j in i.PencilMarks:
+                # is pencil mark j unique in the row, column, or grid?
+                if all(j not in self.cells[k].PencilMarks for k in i.neighbors.row) \
+                        or all(j not in self.cells[k].PencilMarks for k in i.neighbors.column) \
+                        or all(j not in self.cells[k].PencilMarks for k in i.neighbors.grid):
+                    hidden_single = j
+                    break
+
+            if hidden_single is not None:
+                i.PencilMarks = [hidden_single]
+        # seek out and process naked singles
+        naked_single_set = [y for y in working_set if len(y.PencilMarks) == 1]
+        # print([x.PencilMarks for x in naked_single_set])
+        for i in naked_single_set:
+            i.solve(i.PencilMarks[0])
+            # print(i.GetValue())
+            for j in i.neighbors.aggregate():
+                # print(j, self.cells[j].PencilMarks)
+                self.cells[j].remove_mark(i.get_value())
+                # print(j, self.cells[j].PencilMarks)
+        new_singles_set = [y for y in [x for x in self.cells if not x.solved] if len(y.PencilMarks) == 1]
+        return new_singles_set
 
 
 if __name__ == "__main__":
