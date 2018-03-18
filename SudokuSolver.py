@@ -118,29 +118,16 @@ class Puzzle:
                 continue
 
             working_set = [x for x in self.cells if not x.solved]
-            # check for hidden pairs
-            # self.process_hidden_pairs(working_set)
 
-            # check for naked pairs
-            # self.process_naked_pairs(working_set)
-            self.reduce_r(working_set, 2)
-
-            # check for pointing pairs
-            self.process_pointing_pairs(working_set)
-
+            # check for pairs
             # keep rolling if new singles resulted from pairs checks
-            new_singles_set = [y for y in [x for x in self.cells if not x.solved] if len(y.PencilMarks) == 1]
+            new_singles_set = self.reduce_r(working_set, 2)
             if len(new_singles_set) > 0:
                 continue
 
-            # check for hidden triples
-            # self.process_hidden_triples(working_set)
-
-            # check for naked triples
-            self.reduce_r(working_set, 3)
-
+            # check for triples
             # keep rolling if new singles resulted from triples checks
-            new_singles_set = [y for y in [x for x in self.cells if not x.solved] if len(y.PencilMarks) == 1]
+            new_singles_set = self.reduce_r(working_set, 3)
             if len(new_singles_set) > 0:
                 continue
 
@@ -198,14 +185,6 @@ class Puzzle:
                         for neighbor in mutual_neighbors:
                             for mark in shared_marks:
                                 self.cells[neighbor].remove_mark(mark)
-                # elif len(exclusive_marks) == 1 and len(set([p.grid for p in cell_tuple])) == 1:
-                #     # check cells in grid for exclusive value
-                #     grid_neighbors = set.intersection(*[set(p.neighbors.grid) for p in cell_tuple])
-                #     mark = exclusive_marks.pop()
-                #     if all(mark not in self.cells[k].PencilMarks for k in grid_neighbors):
-                #         # pointing pair or triple--remove from other cells in section
-                #         for neighbor in mutual_neighbors:
-                #             self.cells[neighbor].remove_mark(mark)
 
             working_column = [x for x in working_set if x.column_index == i and len(x.PencilMarks) > 1]
             for cell_tuple in combinations(working_column, r):
@@ -223,14 +202,6 @@ class Puzzle:
                         for neighbor in mutual_neighbors:
                             for mark in shared_marks:
                                 self.cells[neighbor].remove_mark(mark)
-                # elif len(exclusive_marks) == 1 and len(set([p.grid for p in cell_tuple])) == 1:
-                #     # check cells in grid for exclusive value
-                #     grid_neighbors = set.intersection(*[set(p.neighbors.grid) for p in cell_tuple])
-                #     mark = exclusive_marks.pop()
-                #     if all(mark not in self.cells[k].PencilMarks for k in grid_neighbors):
-                #         # pointing pair or triple--remove from other cells in section
-                #         for neighbor in mutual_neighbors:
-                #             self.cells[neighbor].remove_mark(mark)
 
             working_grid = [x for x in working_set if x.grid == i and len(x.PencilMarks) > 1]
             for cell_tuple in combinations(working_grid, r):
@@ -248,6 +219,8 @@ class Puzzle:
                         for neighbor in mutual_neighbors:
                             for mark in shared_marks:
                                 self.cells[neighbor].remove_mark(mark)
+        self.process_pointing_pairs(working_set)
+        return [y for y in [x for x in self.cells if not x.solved] if len(y.PencilMarks) == 1]
 
     def process_singles(self, working_set):
         # seek out and process hidden singles
