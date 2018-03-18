@@ -225,21 +225,21 @@ class Puzzle:
                         for mark in shared_marks:
                             self.cells[neighbor].remove_mark(mark)
             working_column = [x for x in working_set if x.column_index == i and len(x.PencilMarks) > 1]
-            for cell_tuple in combinations(working_column, 3):
+            for cell_tuple in combinations(working_column, r):
                 shared_marks = set.union(*[set(p.PencilMarks) for p in cell_tuple])
                 mutual_neighbors = set.intersection(*[set(p.neighbors.column) for p in cell_tuple])
                 mn_marks = [set(self.cells[i].PencilMarks) for i in mutual_neighbors]
-                if len(shared_marks) == 3:
+                if len(shared_marks) == r:
                     for neighbor in mutual_neighbors:
                         for mark in shared_marks:
                             self.cells[neighbor].remove_mark(mark)
             working_grid = [x for x in working_set if x.grid == i and len(x.PencilMarks) > 1]
-            for cell_tuple in combinations(working_grid, 3):
+            for cell_tuple in combinations(working_grid, r):
                 shared_marks = set.union(*[set(p.PencilMarks) for p in cell_tuple])
                 mutual_neighbors = set.intersection(*[set(p.neighbors.grid) for p in cell_tuple])
                 mn_marks = [set(self.cells[i].PencilMarks) for i in mutual_neighbors]
 
-                if len(shared_marks) == 3:
+                if len(shared_marks) == r:
                     for neighbor in mutual_neighbors:
                         for mark in shared_marks:
                             self.cells[neighbor].remove_mark(mark)
