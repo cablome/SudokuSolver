@@ -111,6 +111,7 @@ class Puzzle:
         unsolved_before = len(working_set)
 
         while not puzzle_solved:
+            # print(self.info())
             # deal with hidden and naked singles until none are found
             new_singles_set = self.process_singles(working_set)
             if len(new_singles_set) > 0:
@@ -121,7 +122,8 @@ class Puzzle:
             self.process_hidden_pairs(working_set)
 
             # check for naked pairs
-            self.process_naked_pairs(working_set)
+            # self.process_naked_pairs(working_set)
+            self.reduce_r(working_set, 2)
 
             # check for pointing pairs
             self.process_pointing_pairs(working_set)
@@ -132,10 +134,10 @@ class Puzzle:
                 continue
 
             # check for hidden triples
-            self.process_hidden_triples(working_set)
+            # self.process_hidden_triples(working_set)
 
             # check for naked triples
-            self.process_naked_triples(working_set)
+            self.reduce_r(working_set, 3)
 
             # keep rolling if new singles resulted from triples checks
             new_singles_set = [y for y in [x for x in self.cells if not x.solved] if len(y.PencilMarks) == 1]
@@ -150,36 +152,9 @@ class Puzzle:
                 return None
             unsolved_before = unsolved_after
             print("unsolved:" + str(unsolved_after))
+            # print(self.info())
             puzzle_solved = (unsolved_after == 0)
         return [self.cells[i].get_value() for i in range(81)]
-
-    def process_naked_pairs(self, working_set):
-        pair_candidate_set = [x for x in working_set if len(x.PencilMarks) == 2]
-        for pair in combinations(pair_candidate_set, 2):
-            if pair[0].PencilMarks == pair[1].PencilMarks:
-                # may be a naked pair -- check for same section and process
-                if pair[0].row_index == pair[1].row_index:
-                    # same row -- remove pencil marks from others in row
-                    for c in [self.cells[i] for i in pair[0].neighbors.row
-                              if not self.cells[i].solved
-                                 and self.cells[i].column_index != pair[1].column_index]:
-                        c.remove_mark(pair[0].PencilMarks[0])
-                        c.remove_mark(pair[0].PencilMarks[1])
-                if pair[0].column_index == pair[1].column_index:
-                    # same column -- remove pencil marks from others in column
-                    for c in [self.cells[i] for i in pair[0].neighbors.column
-                              if not self.cells[i].solved
-                                 and self.cells[i].row_index != pair[1].row_index]:
-                        c.remove_mark(pair[0].PencilMarks[0])
-                        c.remove_mark(pair[0].PencilMarks[1])
-                if pair[0].grid == pair[1].grid:
-                    # same grid -- remove pencil marks from others in grid
-                    for c in [self.cells[i] for i in pair[0].neighbors.grid
-                              if not self.cells[i].solved
-                                 and self.cells[i].row_index != pair[1].row_index
-                                 or self.cells[i].column_index != pair[1].column_index]:
-                        c.remove_mark(pair[0].PencilMarks[0])
-                        c.remove_mark(pair[0].PencilMarks[1])
 
     def process_hidden_pairs(self, working_set):
         neighbor_pairs = [p for p in combinations([x for x in working_set if len(x.PencilMarks) > 2], 2)
@@ -190,17 +165,17 @@ class Puzzle:
             hidden_pair = False
             shared_marks = set.union(*[set(p.PencilMarks) for p in pair])
             if pair[0].row_index == pair[1].row_index:
-                mutual_neighbors = set(pair[0].neighbors.row) & set(pair[1].neighbors.row)
+                mutual_neighbors = set.intersection(*[set(p.neighbors.row) for p in pair])
                 mn_marks = [set(self.cells[i].PencilMarks) for i in mutual_neighbors]
                 exclusive_marks = shared_marks - set.union(*mn_marks)
                 hidden_pair = len(exclusive_marks) == 2
             elif pair[0].column_index == pair[1].column_index:
-                mutual_neighbors = set(pair[0].neighbors.column) & set(pair[1].neighbors.column)
+                mutual_neighbors = set.intersection(*[set(p.neighbors.column) for p in pair])
                 mn_marks = [set(self.cells[i].PencilMarks) for i in mutual_neighbors]
                 exclusive_marks = shared_marks - set.union(*mn_marks)
                 hidden_pair = len(exclusive_marks) == 2
             elif not hidden_pair and pair[0].grid == pair[1].grid:
-                mutual_neighbors = set(pair[0].neighbors.grid) & set(pair[1].neighbors.grid)
+                mutual_neighbors = set.intersection(*[set(p.neighbors.grid) for p in pair])
                 mn_marks = [set(self.cells[i].PencilMarks) for i in mutual_neighbors]
                 exclusive_marks = shared_marks - set.union(*mn_marks)
                 hidden_pair = len(exclusive_marks) == 2
@@ -218,7 +193,7 @@ class Puzzle:
                               or p[0].column_index == p[1].column_index)
                           and p[0].grid == p[1].grid]
         for pair in neighbor_pairs:
-            mutual_neighbors = set(pair[0].neighbors.grid) & set(pair[1].neighbors.grid)
+            mutual_neighbors = set.intersection(*[set(p.neighbors.grid) for p in pair])
             shared_marks = set.union(*[set(p.PencilMarks) for p in pair])
             mn_marks = [set(self.cells[i].PencilMarks) for i in mutual_neighbors]
             exclusive_marks = shared_marks - set.union(*mn_marks)
@@ -235,35 +210,39 @@ class Puzzle:
                 for j in set(pair[0].neighbors.column) & set(pair[1].neighbors.column):
                     self.cells[j].remove_mark(mark)
 
-    def process_naked_triples(self, working_set):
-        for triple in combinations([x for x in working_set if len(x.PencilMarks) > 2], 3):
-            shared_marks = set.union(*[set(p.PencilMarks) for p in triple])
-            if len(shared_marks) == 3:
-                # may be a naked triple -- check for same section and process
-                if triple[0].row_index == triple[1].row_index and triple[0].row_index == triple[2].row_index:
-                    # same row -- remove pencil marks from others in row
-                    for c in [self.cells[i] for i in triple[0].neighbors.row
-                              if self.cells[i].column_index != triple[1].column_index
-                                 and self.cells[i].column_index != triple[2].column_index]:
-                        for sm in shared_marks:
-                            c.remove_mark(sm)
-                if triple[0].column_index == triple[1].column_index and triple[0].column_index == triple[
-                    2].column_index:
-                    # same column -- remove pencil marks from others in column
-                    for c in [self.cells[i] for i in triple[0].neighbors.column
-                              if self.cells[i].row_index != triple[1].row_index
-                                 and self.cells[i].row_index != triple[2].row_index]:
-                        for sm in shared_marks:
-                            c.remove_mark(sm)
-                if triple[0].grid == triple[1].grid and triple[0].grid == triple[2].grid:
-                    # same grid -- remove pencil marks from others in grid
-                    for c in [self.cells[i] for i in triple[0].neighbors.grid
-                              if self.cells[i].row_index != triple[1].row_index
-                                 and self.cells[i].row_index != triple[2].row_index
-                                 or self.cells[i].column_index != triple[1].column_index
-                                 and self.cells[i].column_index != triple[2].column_index]:
-                        for sm in shared_marks:
-                            c.remove_mark(sm)
+    def reduce_r(self, working_set, r):
+        # consider one section (row, column, grid) at a time
+        for i in range(9):
+            working_row = [x for x in working_set if x.row_index == i and len(x.PencilMarks) > 1]
+            for cell_tuple in combinations(working_row, r):
+                shared_marks = set.union(*[set(p.PencilMarks) for p in cell_tuple])
+                mutual_neighbors = set.intersection(*[set(p.neighbors.row) for p in cell_tuple])
+                mn_marks = [set(self.cells[i].PencilMarks) for i in mutual_neighbors]
+                exclusive_marks = shared_marks - set.union(*mn_marks)
+
+                if len(shared_marks) == r:
+                    for neighbor in mutual_neighbors:
+                        for mark in shared_marks:
+                            self.cells[neighbor].remove_mark(mark)
+            working_column = [x for x in working_set if x.column_index == i and len(x.PencilMarks) > 1]
+            for cell_tuple in combinations(working_column, 3):
+                shared_marks = set.union(*[set(p.PencilMarks) for p in cell_tuple])
+                mutual_neighbors = set.intersection(*[set(p.neighbors.column) for p in cell_tuple])
+                mn_marks = [set(self.cells[i].PencilMarks) for i in mutual_neighbors]
+                if len(shared_marks) == 3:
+                    for neighbor in mutual_neighbors:
+                        for mark in shared_marks:
+                            self.cells[neighbor].remove_mark(mark)
+            working_grid = [x for x in working_set if x.grid == i and len(x.PencilMarks) > 1]
+            for cell_tuple in combinations(working_grid, 3):
+                shared_marks = set.union(*[set(p.PencilMarks) for p in cell_tuple])
+                mutual_neighbors = set.intersection(*[set(p.neighbors.grid) for p in cell_tuple])
+                mn_marks = [set(self.cells[i].PencilMarks) for i in mutual_neighbors]
+
+                if len(shared_marks) == 3:
+                    for neighbor in mutual_neighbors:
+                        for mark in shared_marks:
+                            self.cells[neighbor].remove_mark(mark)
 
     def process_hidden_triples(self, working_set):
         neighbor_triples = [p for p in combinations([x for x in working_set if len(x.PencilMarks) > 2], 3)
