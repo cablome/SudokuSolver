@@ -198,6 +198,14 @@ class Puzzle:
                         for neighbor in mutual_neighbors:
                             for mark in shared_marks:
                                 self.cells[neighbor].remove_mark(mark)
+                # elif len(exclusive_marks) == 1 and len(set([p.grid for p in cell_tuple])) == 1:
+                #     # check cells in grid for exclusive value
+                #     grid_neighbors = set.intersection(*[set(p.neighbors.grid) for p in cell_tuple])
+                #     mark = exclusive_marks.pop()
+                #     if all(mark not in self.cells[k].PencilMarks for k in grid_neighbors):
+                #         # pointing pair or triple--remove from other cells in section
+                #         for neighbor in mutual_neighbors:
+                #             self.cells[neighbor].remove_mark(mark)
 
             working_column = [x for x in working_set if x.column_index == i and len(x.PencilMarks) > 1]
             for cell_tuple in combinations(working_column, r):
@@ -215,6 +223,14 @@ class Puzzle:
                         for neighbor in mutual_neighbors:
                             for mark in shared_marks:
                                 self.cells[neighbor].remove_mark(mark)
+                # elif len(exclusive_marks) == 1 and len(set([p.grid for p in cell_tuple])) == 1:
+                #     # check cells in grid for exclusive value
+                #     grid_neighbors = set.intersection(*[set(p.neighbors.grid) for p in cell_tuple])
+                #     mark = exclusive_marks.pop()
+                #     if all(mark not in self.cells[k].PencilMarks for k in grid_neighbors):
+                #         # pointing pair or triple--remove from other cells in section
+                #         for neighbor in mutual_neighbors:
+                #             self.cells[neighbor].remove_mark(mark)
 
             working_grid = [x for x in working_set if x.grid == i and len(x.PencilMarks) > 1]
             for cell_tuple in combinations(working_grid, r):
